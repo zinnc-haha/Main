@@ -115,7 +115,7 @@ end
 local function buildPayload()
     return {
         username = "Z-Notifier",
-        avatar_url = "https://i.imgur.com/9LGIUQQ.png",
+        avatar_url = "https://raw.githubusercontent.com/zinnc-haha/Main/main/file_00000000bba47208a885beff68d20247.png",
         embeds = {{
             title = "Roblox Stats Updated!",
             description = getRandomQuote(),
