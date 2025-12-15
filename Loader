@@ -1,0 +1,215 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+local request = http_request or http and http.request or request
+
+local CONFIG_FILE = "Z-Config.json"
+local webhook
+local messageId
+local startTime = os.time()
+
+local motivations = {
+    "Small progress today still moves you forward.",
+    "Consistency will always beat short-term motivation.",
+    "Every session brings you closer to results.",
+    "Keep going, even slow progress matters.",
+    "Focus on the process and results will follow.",
+    "Discipline today builds success tomorrow.",
+    "Quiet effort always compounds over time.",
+    "Do not stop just because progress feels slow.",
+    "One more session can make the difference.",
+    "Progress comes from showing up daily.",
+    "Stay consistent and trust the process.",
+    "Effort repeated daily creates growth.",
+    "You are building momentum right now.",
+    "Improvement happens one step at a time.",
+    "Consistency is the real advantage.",
+    "Stay focused, stay disciplined.",
+    "Results come from daily execution.",
+    "Patience plus effort creates success.",
+    "Keep working even when no one notices.",
+    "Your progress is happening right now."
+}
+
+local lastDescIndex
+
+local function getRandomDescription()
+    local i
+    repeat
+        i = math.random(#motivations)
+    until i ~= lastDescIndex
+    lastDescIndex = i
+    return motivations[i]
+end
+
+local function notify(title, text, dur)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = dur or 4
+        })
+    end)
+end
+
+local function loadConfig()
+    if isfile(CONFIG_FILE) then
+        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+    end
+end
+
+local function saveConfig(data)
+    writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+end
+
+local cfg = loadConfig()
+if cfg and cfg.webhook then
+    webhook = cfg.webhook
+end
+
+if not webhook then
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ZNotifierGUI"
+    gui.IgnoreGuiInset = true
+    gui.Parent = game.CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Parent = gui
+    frame.Size = UDim2.fromScale(0.45, 0.3)
+    frame.Position = UDim2.fromScale(0.5, 0.5)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 24)
+
+    local title = Instance.new("TextLabel")
+    title.Parent = frame
+    title.Size = UDim2.fromScale(1, 0.3)
+    title.BackgroundTransparency = 1
+    title.Text = "Z-Notifier"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 26
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    local input = Instance.new("TextBox")
+    input.Parent = frame
+    input.Size = UDim2.fromScale(0.9, 0.25)
+    input.Position = UDim2.fromScale(0.05, 0.38)
+    input.Text = ""
+    input.PlaceholderText = "Enter your Discord webhook URL"
+    input.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+    input.ClearTextOnFocus = false
+    input.Font = Enum.Font.Gotham
+    input.TextSize = 16
+    input.TextColor3 = Color3.fromRGB(255, 255, 255)
+    input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 14)
+
+    local button = Instance.new("TextButton")
+    button.Parent = frame
+    button.Size = UDim2.fromScale(0.45, 0.22)
+    button.Position = UDim2.fromScale(0.275, 0.7)
+    button.Text = "ENTER"
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 18
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.BackgroundColor3 = Color3.fromRGB(0, 229, 255)
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 16)
+
+    button.MouseButton1Click:Connect(function()
+        if input.Text:find("discord.com/api/webhooks") then
+            webhook = input.Text
+            saveConfig({ webhook = webhook })
+            notify("Z-Notifier", "Webhook saved successfully", 4)
+            gui:Destroy()
+        end
+    end)
+
+    repeat task.wait() until webhook
+end
+
+local function formatTime(sec)
+    return string.format("%02d:%02d:%02d", sec // 3600, (sec % 3600) // 60, sec % 60)
+end
+
+local function getPing()
+    local p = Stats.Network.ServerStatsItem["Data Ping"]
+    return p and math.floor(p:GetValue()) .. " ms" or "N/A"
+end
+
+local function getMemory()
+    return string.format("%.2f MB", Stats:GetTotalMemoryUsageMb())
+end
+
+local function getCPU()
+    local cpu = Stats.PerformanceStats and Stats.PerformanceStats:FindFirstChild("CPU")
+    return cpu and string.format("%.2f%%", cpu:GetValue()) or "N/A"
+end
+
+local function getExecutor()
+    return identifyexecutor and identifyexecutor() or "Unknown"
+end
+
+local function box(v)
+    return "```" .. tostring(v) .. "```"
+end
+
+local function buildPayload()
+    return {
+        username = "Z-Notifier",
+        embeds = {{
+            title = "Roblox Stats Updated!",
+            description = getRandomDescription(),
+            color = 0x00E5FF,
+            fields = {
+                { name = "Username", value = box(LocalPlayer.Name), inline = true },
+                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = true },
+                { name = "Memory", value = box(getMemory()), inline = true },
+                { name = "CPU", value = box(getCPU()), inline = true },
+                { name = "Ping", value = box(getPing()), inline = true },
+                { name = "Executor", value = box(getExecutor()), inline = true }
+            },
+            footer = { text = "Z-Notifier • Zinnc" },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+end
+
+local function sendWebhook()
+    local res = request({
+        Url = webhook .. "?wait=true",
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(buildPayload())
+    })
+    if res and res.Body then
+        messageId = HttpService:JSONDecode(res.Body).id
+        notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
+    end
+end
+
+local function editWebhook()
+    if not messageId then return end
+    request({
+        Url = webhook .. "/messages/" .. messageId,
+        Method = "PATCH",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(buildPayload())
+    })
+    notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
+end
+
+sendWebhook()
+
+local INTERVAL = 300
+local last = os.clock()
+
+RunService.Heartbeat:Connect(function()
+    if os.clock() - last >= INTERVAL then
+        last = os.clock()
+        editWebhook()
+    end
+end)
