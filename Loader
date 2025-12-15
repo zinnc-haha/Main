@@ -1,0 +1,191 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+local usernameCached = LocalPlayer.Name
+local startTime = os.time()
+
+local requestFunction =
+    (syn and syn.request)
+    or http_request
+    or request
+    or (http and http.request)
+
+assert(requestFunction, "HTTP request function not found")
+
+local CONFIG_FOLDER = "Z-Notifier"
+local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
+
+if makefolder and not isfolder(CONFIG_FOLDER) then
+    makefolder(CONFIG_FOLDER)
+end
+
+local config = {
+    linkWebhook = "",
+    sendwebhook = true
+}
+
+if isfile and isfile(CONFIG_FILE) then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+    end)
+    if ok and type(data) == "table" then
+        config.linkWebhook = data.linkWebhook or ""
+        config.sendwebhook = data.sendwebhook ~= false
+    end
+end
+
+local function saveConfig()
+    if writefile then
+        writefile(CONFIG_FILE, HttpService:JSONEncode(config))
+    end
+end
+
+local function notify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 5
+        })
+    end)
+end
+
+local function formatTime(sec)
+    return string.format("%02d:%02d:%02d", sec // 3600, (sec % 3600) // 60, sec % 60)
+end
+
+local function box(v)
+    return "```\n" .. tostring(v) .. "\n```"
+end
+
+local function getPing()
+    local p = Stats.Network.ServerStatsItem["Data Ping"]
+    return p and math.floor(p:GetValue() + 0.5) .. " ms" or "N/A"
+end
+
+local function getMemoryUsage()
+    local mem = Stats.PerformanceStats:FindFirstChild("Memory")
+    return mem and string.format("%.2f MB", mem:GetValue()) or "N/A"
+end
+
+local function getCPUUsage()
+    local cpu = Stats.PerformanceStats:FindFirstChild("CPU")
+    return cpu and string.format("%.2f ms", cpu:GetValue()) or "N/A"
+end
+
+local function getExecutor()
+    return identifyexecutor and identifyexecutor() or "Unknown"
+end
+
+local function buildPayload()
+    return {
+        username = "Z-Notifier",
+        embeds = {{
+            title = "Roblox Stats Update",
+            color = 0x00B0FF,
+            fields = {
+                { name = "Username", value = box(usernameCached), inline = false },
+                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = false },
+                { name = "Memory", value = box(getMemoryUsage()), inline = true },
+                { name = "CPU", value = box(getCPUUsage()), inline = true },
+                { name = "Ping", value = box(getPing()), inline = true },
+                { name = "Executor", value = box(getExecutor()), inline = false }
+            },
+            footer = { text = "Z-Notifier • Zinnc" },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+end
+
+local function sendWebhook()
+    if not config.sendwebhook or config.linkWebhook == "" then
+        return
+    end
+
+    pcall(function()
+        requestFunction({
+            Url = config.linkWebhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(buildPayload())
+        })
+    end)
+
+    notify("Z-Notifier", "Webhook stats sent", 5)
+end
+
+if config.linkWebhook == "" then
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    local Frame = Instance.new("Frame")
+    Frame.Parent = ScreenGui
+    Frame.Size = UDim2.fromScale(0.38, 0.32)
+    Frame.Position = UDim2.fromScale(0.31, 0.34)
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+
+    local Title = Instance.new("TextLabel")
+    Title.Parent = Frame
+    Title.Size = UDim2.fromScale(1, 0.2)
+    Title.Position = UDim2.fromScale(0, 0.05)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Z-Notifier"
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 22
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Parent = Frame
+    TextBox.Size = UDim2.fromScale(0.9, 0.25)
+    TextBox.Position = UDim2.fromScale(0.05, 0.38)
+    TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    TextBox.BorderSizePixel = 0
+    TextBox.PlaceholderText = "Enter your discord webhook link"
+    TextBox.Text = ""
+    TextBox.TextColor3 = Color3.new(1, 1, 1)
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextSize = 14
+    TextBox.ClearTextOnFocus = false
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
+
+    local Button = Instance.new("TextButton")
+    Button.Parent = Frame
+    Button.Size = UDim2.fromScale(0.4, 0.18)
+    Button.Position = UDim2.fromScale(0.3, 0.7)
+    Button.BackgroundColor3 = Color3.fromRGB(60, 130, 255)
+    Button.Text = "ENTER"
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 16
+    Button.BorderSizePixel = 0
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+    Button.MouseButton1Click:Connect(function()
+        if TextBox.Text ~= "" then
+            config.linkWebhook = TextBox.Text
+            saveConfig()
+            ScreenGui:Destroy()
+            notify("Z-Notifier", "Webhook saved", 5)
+            sendWebhook()
+        end
+    end)
+else
+    sendWebhook()
+end
+
+local UPDATE_INTERVAL = 300
+local lastUpdate = os.clock()
+
+RunService.Heartbeat:Connect(function()
+    if os.clock() - lastUpdate >= UPDATE_INTERVAL then
+        lastUpdate = os.clock()
+        sendWebhook()
+    end
+end)
