@@ -81,6 +81,154 @@ local function getExecutor()
     return identifyexecutor and identifyexecutor() or "Unknown"
 end
 
+local motivationQuotes = {
+    "Stay consistent, progress will follow.",
+    "Small steps today lead to big results tomorrow.",
+    "Focus on improvement, not perfection.",
+    "Discipline beats motivation every time.",
+    "Every moment is a chance to move forward.",
+    "Hard work turns goals into reality.",
+    "Keep going, even when it feels slow.",
+    "Success is built one decision at a time.",
+    "Your effort today defines your outcome.",
+    "Progress is progress, no matter how small.",
+    "Trust the process and stay committed.",
+    "Challenges are part of growth.",
+    "Stay focused, stay driven.",
+    "Consistency creates unstoppable momentum.",
+    "Do something today your future self will thank you for.",
+    "Results come from persistence.",
+    "Stay patient and keep pushing forward.",
+    "Every step forward counts.",
+    "Growth begins outside your comfort zone.",
+    "Strong habits build strong results."
+}
+
+local function getRandomQuote()
+    local index = math.random(#motivationQuotes)
+    return motivationQuotes[index]
+end
+
+local function buildPayload()
+    return {
+        username = "Z-WebHook",
+        embeds = {{
+            title = "Roblox Stats Updated!",
+            description = getRandomQuote(),
+            color = 0x00B0FF,
+            fields = {
+                { name = "Username", value = box(usernameCached), inline = false },
+                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = false },
+                { name = "Memory", value = box(getMemoryUsage()), inline = true },
+                { name = "CPU", value = box(getCPUUsage()), inline = true },
+                { name = "Ping", value = box(getPing()), inline = true },
+                { name = "Executor", value = box(getExecutor()), inline = false }
+            },
+            footer = { text = "Z-Notifier • Zinnc" },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+end
+
+local function sendWebhook()
+    if not config.sendwebhook or config.linkWebhook == "" then
+        return
+    end
+
+    pcall(function()
+        requestFunction({
+            Url = config.linkWebhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(buildPayload())
+        })
+    end)
+
+    notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
+end
+
+if config.linkWebhook == "" then
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    local Frame = Instance.new("Frame")
+    Frame.Parent = ScreenGui
+    Frame.Size = UDim2.fromScale(0.38, 0.32)
+    Frame.Position = UDim2.fromScale(0.31, 0.34)
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+
+    local Title = Instance.new("TextLabel")
+    Title.Parent = Frame
+    Title.Size = UDim2.fromScale(1, 0.2)
+    Title.Position = UDim2.fromScale(0, 0.05)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Z-Notifier"
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 22
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Parent = Frame
+    TextBox.Size = UDim2.fromScale(0.9, 0.25)
+    TextBox.Position = UDim2.fromScale(0.05, 0.38)
+    TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    TextBox.BorderSizePixel = 0
+    TextBox.PlaceholderText = "Enter your discord webhook link"
+    TextBox.Text = ""
+    TextBox.TextColor3 = Color3.new(1, 1, 1)
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextSize = 14
+    TextBox.ClearTextOnFocus = false
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
+
+    local Button = Instance.new("TextButton")
+    Button.Parent = Frame
+    Button.Size = UDim2.fromScale(0.4, 0.18)
+    Button.Position = UDim2.fromScale(0.3, 0.7)
+    Button.BackgroundColor3 = Color3.fromRGB(60, 130, 255)
+    Button.Text = "ENTER"
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 16
+    Button.BorderSizePixel = 0
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+    Button.MouseButton1Click:Connect(function()
+        if TextBox.Text ~= "" then
+            config.linkWebhook = TextBox.Text
+            saveConfig()
+            ScreenGui:Destroy()
+            notify("Z-Notifier", "Webhook link successfully saved!", 5)
+            sendWebhook()
+        end
+    end)
+else
+    sendWebhook()
+end
+
+local UPDATE_INTERVAL = 300
+local lastUpdate = os.clock()
+
+RunService.Heartbeat:Connect(function()
+    if os.clock() - lastUpdate >= UPDATE_INTERVAL then
+        lastUpdate = os.clock()
+        sendWebhook()
+    end
+end)    return mem and string.format("%.2f MB", mem:GetValue()) or "N/A"
+end
+
+local function getCPUUsage()
+    local cpu = Stats.PerformanceStats:FindFirstChild("CPU")
+    return cpu and string.format("%.2f ms", cpu:GetValue()) or "N/A"
+end
+
+local function getExecutor()
+    return identifyexecutor and identifyexecutor() or "Unknown"
+end
+
 local function buildPayload()
     return {
         username = "Z-WebHook",
