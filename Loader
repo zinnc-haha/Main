@@ -115,7 +115,7 @@ local function sendWebhook()
         })
     end)
 
-    notify("Z-Notifier", "Webhook stats sent", 5)
+    notify("Z-Notifier", "Webhook stats succesfully updated on discord", 5)
 end
 
 if config.linkWebhook == "" then
@@ -172,7 +172,7 @@ if config.linkWebhook == "" then
             config.linkWebhook = TextBox.Text
             saveConfig()
             ScreenGui:Destroy()
-            notify("Z-Notifier", "Webhook saved", 5)
+            notify("Z-Notifier", "Webhook link succesfully saved to config!", 5)
             sendWebhook()
         end
     end)
