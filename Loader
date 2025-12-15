@@ -12,6 +12,8 @@ local webhook
 local messageId
 local startTime = os.time()
 
+local AVATAR_URL = "https://raw.githubusercontent.com/zinnc-haha/Main/main/file_00000000bba47208a885beff68d20247.png"
+
 local motivations = {
     "Small progress today still moves you forward.",
     "Consistency will always beat short-term motivation.",
@@ -73,7 +75,7 @@ end
 
 if not webhook then
     local gui = Instance.new("ScreenGui")
-    gui.Name = "ZNotifierGUI"
+    gui.Name = "Z-Gui"
     gui.IgnoreGuiInset = true
     gui.Parent = game.CoreGui
 
@@ -146,7 +148,7 @@ end
 
 local function getCPU()
     local cpu = Stats.PerformanceStats and Stats.PerformanceStats:FindFirstChild("CPU")
-    return cpu and string.format("%.2f%%", cpu:GetValue()) or "N/A"
+    return cpu and string.format("%.2f ms", cpu:GetValue()) or "N/A"
 end
 
 local function getExecutor()
@@ -159,20 +161,24 @@ end
 
 local function buildPayload()
     return {
-        username = "Z-Notifier",
+        username = "Z-WebHook",
+        avatar_url = AVATAR_URL,
         embeds = {{
             title = "Roblox Stats Updated!",
             description = getRandomDescription(),
             color = 0x00E5FF,
             fields = {
-                { name = "Username", value = box(LocalPlayer.Name), inline = true },
-                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = true },
-                { name = "Memory", value = box(getMemory()), inline = true },
-                { name = "CPU", value = box(getCPU()), inline = true },
-                { name = "Ping", value = box(getPing()), inline = true },
-                { name = "Executor", value = box(getExecutor()), inline = true }
+                { name = "Username :", value = box(LocalPlayer.Name), inline = true },
+                { name = "Uptime :", value = box(formatTime(os.time() - startTime)), inline = true },
+                { name = "Memory :", value = box(getMemory()), inline = true },
+                { name = "CPU :", value = box(getCPU()), inline = true },
+                { name = "Ping :", value = box(getPing()), inline = true },
+                { name = "Executor :", value = box(getExecutor()), inline = true }
             },
-            footer = { text = "Z-Notifier • Zinnc" },
+            footer = {
+                text = "Z-Notifier #Zinnc",
+                icon_url = AVATAR_URL
+            },
             timestamp = DateTime.now():ToIsoDate()
         }}
     }
