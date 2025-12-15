@@ -119,12 +119,12 @@ local function buildPayload()
             description = getRandomQuote(),
             color = 0x00B0FF,
             fields = {
-                { name = "Username", value = box(usernameCached), inline = false },
-                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = false },
-                { name = "Memory", value = box(getMemoryUsage()), inline = true },
-                { name = "CPU", value = box(getCPUUsage()), inline = true },
-                { name = "Ping", value = box(getPing()), inline = true },
-                { name = "Executor", value = box(getExecutor()), inline = false }
+                { name = "Username :", value = box(usernameCached), inline = false },
+                { name = "Uptime :", value = box(formatTime(os.time() - startTime)), inline = false },
+                { name = "Memory :", value = box(getMemoryUsage()), inline = true },
+                { name = "CPU :", value = box(getCPUUsage()), inline = true },
+                { name = "Ping :", value = box(getPing()), inline = true },
+                { name = "Executor :", value = box(getExecutor()), inline = false }
             },
             footer = { text = "Z-Notifier • Zinnc" },
             timestamp = DateTime.now():ToIsoDate()
