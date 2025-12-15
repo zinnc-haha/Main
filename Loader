@@ -5,6 +5,8 @@ local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
 local usernameCached = LocalPlayer.Name
 local startTime = os.time()
 
@@ -14,7 +16,7 @@ local requestFunction =
     or request
     or (http and http.request)
 
-assert(requestFunction, "HTTP request function not found")
+if not requestFunction then return end
 
 local CONFIG_FOLDER = "Z-Notifier"
 local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
@@ -23,10 +25,7 @@ if makefolder and not isfolder(CONFIG_FOLDER) then
     makefolder(CONFIG_FOLDER)
 end
 
-local config = {
-    linkWebhook = "",
-    messageId = ""
-}
+local config = { linkWebhook = "" }
 
 if isfile and isfile(CONFIG_FILE) then
     local ok, data = pcall(function()
@@ -34,7 +33,6 @@ if isfile and isfile(CONFIG_FILE) then
     end)
     if ok and type(data) == "table" then
         config.linkWebhook = data.linkWebhook or ""
-        config.messageId = data.messageId or ""
     end
 end
 
@@ -44,6 +42,8 @@ local function saveConfig()
     end
 end
 
+local runtimeMessageId = nil
+
 local function notify()
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -51,6 +51,59 @@ local function notify()
             Text = "Webhook stats successfully updated on Discord",
             Duration = 5
         })
+    end)
+end
+
+if config.linkWebhook == "" then
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "Z-Notifier"
+    gui.Parent = PlayerGui
+
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.fromScale(0.45, 0.32)
+    main.Position = UDim2.fromScale(0.5, 0.5)
+    main.AnchorPoint = Vector2.new(0.5, 0.5)
+    main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    main.BorderSizePixel = 0
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 20)
+
+    local title = Instance.new("TextLabel", main)
+    title.Size = UDim2.fromScale(1, 0.25)
+    title.BackgroundTransparency = 1
+    title.Text = "Z-Notifier"
+    title.Font = Enum.Font.GothamBold
+    title.TextScaled = true
+    title.TextColor3 = Color3.new(1, 1, 1)
+
+    local input = Instance.new("TextBox", main)
+    input.Size = UDim2.fromScale(0.9, 0.23)
+    input.Position = UDim2.fromScale(0.05, 0.38)
+    input.PlaceholderText = "Enter your discord webhook link"
+    input.Text = ""
+    input.ClearTextOnFocus = false
+    input.Font = Enum.Font.Gotham
+    input.TextColor3 = Color3.new(1, 1, 1)
+    input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    input.BorderSizePixel = 0
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 14)
+
+    local button = Instance.new("TextButton", main)
+    button.Size = UDim2.fromScale(0.45, 0.22)
+    button.Position = UDim2.fromScale(0.275, 0.7)
+    button.Text = "ENTER"
+    button.Font = Enum.Font.GothamBold
+    button.TextScaled = true
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.BackgroundColor3 = Color3.fromRGB(60, 130, 255)
+    button.BorderSizePixel = 0
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+
+    button.MouseButton1Click:Connect(function()
+        if input.Text ~= "" then
+            config.linkWebhook = input.Text
+            saveConfig()
+            gui:Destroy()
+        end
     end)
 end
 
@@ -101,31 +154,22 @@ local quotes = {
     "Stay patient and keep pushing forward.",
     "Every step forward counts.",
     "Growth begins outside your comfort zone.",
-    "Strong habits build strong results.",
-    "Pressure creates strength.",
-    "Winners are built through consistency.",
-    "Execution matters more than intention.",
-    "Keep building, even in silence."
+    "Strong habits build strong results."
 }
-
-local function getRandomQuote()
-    return quotes[math.random(#quotes)]
-end
 
 local function buildPayload()
     return {
-        username = "Z-Notifier",
         embeds = {{
             title = "Roblox Stats Updated!",
-            description = getRandomQuote(),
+            description = quotes[math.random(#quotes)],
             color = 0x00B0FF,
             fields = {
-                { name = "Username :", value = box(usernameCached), inline = false },
-                { name = "Uptime :", value = box(formatTime(os.time() - startTime)), inline = false },
-                { name = "Memory :", value = box(getMemoryUsage()), inline = true },
-                { name = "CPU :", value = box(getCPUUsage()), inline = true },
-                { name = "Ping :", value = box(getPing()), inline = true },
-                { name = "Executor :", value = box(getExecutor()), inline = false }
+                { name = "Username", value = box(usernameCached), inline = false },
+                { name = "Uptime", value = box(formatTime(os.time() - startTime)), inline = false },
+                { name = "Memory", value = box(getMemoryUsage()), inline = true },
+                { name = "CPU", value = box(getCPUUsage()), inline = true },
+                { name = "Ping", value = box(getPing()), inline = true },
+                { name = "Executor", value = box(getExecutor()), inline = false }
             },
             footer = { text = "Z-Notifier • Zinnc" },
             timestamp = DateTime.now():ToIsoDate()
@@ -136,29 +180,38 @@ end
 local function sendOrEditWebhook()
     if config.linkWebhook == "" then return end
 
-    if config.messageId == "" then
-        local res = requestFunction({
-            Url = config.linkWebhook .. "?wait=true",
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(buildPayload())
-        })
-
-        local data = HttpService:JSONDecode(res.Body)
-        if data and data.id then
-            config.messageId = data.id
-            saveConfig()
-            notify()
+    if not runtimeMessageId then
+        local ok, res = pcall(function()
+            return requestFunction({
+                Url = config.linkWebhook .. "?wait=true",
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(buildPayload())
+            })
+        end)
+        if ok and res and res.Body then
+            local ok2, data = pcall(function()
+                return HttpService:JSONDecode(res.Body)
+            end)
+            if ok2 and data and data.id then
+                runtimeMessageId = data.id
+                notify()
+            end
         end
     else
-        requestFunction({
-            Url = config.linkWebhook .. "/messages/" .. config.messageId,
-            Method = "PATCH",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(buildPayload())
-        })
-
-        notify()
+        local ok = pcall(function()
+            requestFunction({
+                Url = config.linkWebhook .. "/messages/" .. runtimeMessageId,
+                Method = "PATCH",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(buildPayload())
+            })
+        end)
+        if ok then
+            notify()
+        else
+            runtimeMessageId = nil
+        end
     end
 end
 
