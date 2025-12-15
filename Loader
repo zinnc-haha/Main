@@ -83,9 +83,9 @@ end
 
 local function buildPayload()
     return {
-        username = "Z-Notifier",
+        username = "Z-WebHook",
         embeds = {{
-            title = "Roblox Stats Update",
+            title = "Roblox Stats Updated!",
             color = 0x00B0FF,
             fields = {
                 { name = "Username", value = box(usernameCached), inline = false },
