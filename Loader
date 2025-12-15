@@ -5,8 +5,6 @@ local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
 local usernameCached = LocalPlayer.Name
 local startTime = os.time()
 
@@ -16,7 +14,7 @@ local requestFunction =
     or request
     or (http and http.request)
 
-if not requestFunction then return end
+assert(requestFunction, "HTTP request function not found")
 
 local CONFIG_FOLDER = "Z-Notifier"
 local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
@@ -25,7 +23,10 @@ if makefolder and not isfolder(CONFIG_FOLDER) then
     makefolder(CONFIG_FOLDER)
 end
 
-local config = { linkWebhook = "" }
+local config = {
+    linkWebhook = "",
+    sendwebhook = true
+}
 
 if isfile and isfile(CONFIG_FILE) then
     local ok, data = pcall(function()
@@ -33,6 +34,7 @@ if isfile and isfile(CONFIG_FILE) then
     end)
     if ok and type(data) == "table" then
         config.linkWebhook = data.linkWebhook or ""
+        config.sendwebhook = data.sendwebhook ~= false
     end
 end
 
@@ -42,68 +44,13 @@ local function saveConfig()
     end
 end
 
-local runtimeMessageId = nil
-
-local function notify()
+local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = "Z-Notifier",
-            Text = "Webhook stats successfully updated on Discord",
-            Duration = 5
+            Title = title,
+            Text = text,
+            Duration = duration or 5
         })
-    end)
-end
-
-if config.linkWebhook == "" then
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "Z-Notifier"
-    gui.Parent = PlayerGui
-
-    local main = Instance.new("Frame", gui)
-    main.Size = UDim2.fromScale(0.45, 0.32)
-    main.Position = UDim2.fromScale(0.5, 0.5)
-    main.AnchorPoint = Vector2.new(0.5, 0.5)
-    main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    main.BorderSizePixel = 0
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 20)
-
-    local title = Instance.new("TextLabel", main)
-    title.Size = UDim2.fromScale(1, 0.25)
-    title.BackgroundTransparency = 1
-    title.Text = "Z-Notifier"
-    title.Font = Enum.Font.GothamBold
-    title.TextScaled = true
-    title.TextColor3 = Color3.new(1, 1, 1)
-
-    local input = Instance.new("TextBox", main)
-    input.Size = UDim2.fromScale(0.9, 0.23)
-    input.Position = UDim2.fromScale(0.05, 0.38)
-    input.PlaceholderText = "Enter your discord webhook link"
-    input.Text = ""
-    input.ClearTextOnFocus = false
-    input.Font = Enum.Font.Gotham
-    input.TextColor3 = Color3.new(1, 1, 1)
-    input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    input.BorderSizePixel = 0
-    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 14)
-
-    local button = Instance.new("TextButton", main)
-    button.Size = UDim2.fromScale(0.45, 0.22)
-    button.Position = UDim2.fromScale(0.275, 0.7)
-    button.Text = "ENTER"
-    button.Font = Enum.Font.GothamBold
-    button.TextScaled = true
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.BackgroundColor3 = Color3.fromRGB(60, 130, 255)
-    button.BorderSizePixel = 0
-    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
-
-    button.MouseButton1Click:Connect(function()
-        if input.Text ~= "" then
-            config.linkWebhook = input.Text
-            saveConfig()
-            gui:Destroy()
-        end
     end)
 end
 
@@ -134,34 +81,11 @@ local function getExecutor()
     return identifyexecutor and identifyexecutor() or "Unknown"
 end
 
-local quotes = {
-    "Stay consistent, progress will follow.",
-    "Small steps today lead to big results tomorrow.",
-    "Focus on improvement, not perfection.",
-    "Discipline beats motivation every time.",
-    "Every moment is a chance to move forward.",
-    "Hard work turns goals into reality.",
-    "Keep going, even when it feels slow.",
-    "Success is built one decision at a time.",
-    "Your effort today defines your outcome.",
-    "Progress is progress, no matter how small.",
-    "Trust the process and stay committed.",
-    "Challenges are part of growth.",
-    "Stay focused, stay driven.",
-    "Consistency creates unstoppable momentum.",
-    "Do something today your future self will thank you for.",
-    "Results come from persistence.",
-    "Stay patient and keep pushing forward.",
-    "Every step forward counts.",
-    "Growth begins outside your comfort zone.",
-    "Strong habits build strong results."
-}
-
 local function buildPayload()
     return {
+        username = "Z-Notifier",
         embeds = {{
-            title = "Roblox Stats Updated!",
-            description = quotes[math.random(#quotes)],
+            title = "Roblox Stats Update",
             color = 0x00B0FF,
             fields = {
                 { name = "Username", value = box(usernameCached), inline = false },
@@ -177,45 +101,106 @@ local function buildPayload()
     }
 end
 
-local function sendOrEditWebhook()
-    if config.linkWebhook == "" then return end
+local webhookMessageId = nil
 
-    if not runtimeMessageId then
-        local ok, res = pcall(function()
-            return requestFunction({
-                Url = config.linkWebhook .. "?wait=true",
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(buildPayload())
-            })
-        end)
-        if ok and res and res.Body then
-            local ok2, data = pcall(function()
-                return HttpService:JSONDecode(res.Body)
-            end)
-            if ok2 and data and data.id then
-                runtimeMessageId = data.id
-                notify()
-            end
-        end
-    else
-        local ok = pcall(function()
-            requestFunction({
-                Url = config.linkWebhook .. "/messages/" .. runtimeMessageId,
-                Method = "PATCH",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(buildPayload())
-            })
-        end)
-        if ok then
-            notify()
-        else
-            runtimeMessageId = nil
-        end
+local function sendOrEditWebhook()
+    if not config.sendwebhook or config.linkWebhook == "" then
+        return
     end
+
+    local payload = HttpService:JSONEncode(buildPayload())
+
+    if not webhookMessageId then
+        local res = requestFunction({
+            Url = config.linkWebhook .. "?wait=true",
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = payload
+        })
+
+        if res and res.Body then
+            local data = HttpService:JSONDecode(res.Body)
+            webhookMessageId = data.id
+        end
+
+        notify("Z-Notifier", "Webhook stats succesfully updated on discord", 5)
+        return
+    end
+
+    requestFunction({
+        Url = config.linkWebhook .. "/messages/" .. webhookMessageId,
+        Method = "PATCH",
+        Headers = {
+            ["Content-Type"] = "application/json"
+        },
+        Body = payload
+    })
 end
 
-sendOrEditWebhook()
+if config.linkWebhook == "" then
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    local Frame = Instance.new("Frame")
+    Frame.Parent = ScreenGui
+    Frame.Size = UDim2.fromScale(0.38, 0.32)
+    Frame.Position = UDim2.fromScale(0.31, 0.34)
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+
+    local Title = Instance.new("TextLabel")
+    Title.Parent = Frame
+    Title.Size = UDim2.fromScale(1, 0.2)
+    Title.Position = UDim2.fromScale(0, 0.05)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Z-Notifier"
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 22
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Parent = Frame
+    TextBox.Size = UDim2.fromScale(0.9, 0.25)
+    TextBox.Position = UDim2.fromScale(0.05, 0.38)
+    TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    TextBox.BorderSizePixel = 0
+    TextBox.PlaceholderText = "Enter your discord webhook link"
+    TextBox.Text = ""
+    TextBox.TextColor3 = Color3.new(1, 1, 1)
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextSize = 14
+    TextBox.ClearTextOnFocus = false
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
+
+    local Button = Instance.new("TextButton")
+    Button.Parent = Frame
+    Button.Size = UDim2.fromScale(0.4, 0.18)
+    Button.Position = UDim2.fromScale(0.3, 0.7)
+    Button.BackgroundColor3 = Color3.fromRGB(60, 130, 255)
+    Button.Text = "ENTER"
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 16
+    Button.BorderSizePixel = 0
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+    Button.MouseButton1Click:Connect(function()
+        if TextBox.Text ~= "" then
+            config.linkWebhook = TextBox.Text
+            saveConfig()
+            ScreenGui:Destroy()
+            notify("Z-Notifier", "Webhook saved succesfully to config!
+", 5)
+            sendOrEditWebhook()
+        end
+    end)
+else
+    sendOrEditWebhook()
+end
 
 local UPDATE_INTERVAL = 300
 local lastUpdate = os.clock()
