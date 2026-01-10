@@ -14,40 +14,6 @@ local startTime = os.time()
 
 local AVATAR_URL = "https://raw.githubusercontent.com/zinnc-haha/Main/main/file_00000000bba47208a885beff68d20247.png"
 
-local motivations = {
-    "Small progress today still moves you forward.",
-    "Consistency will always beat short-term motivation.",
-    "Every session brings you closer to results.",
-    "Keep going, even slow progress matters.",
-    "Focus on the process and results will follow.",
-    "Discipline today builds success tomorrow.",
-    "Quiet effort always compounds over time.",
-    "Do not stop just because progress feels slow.",
-    "One more session can make the difference.",
-    "Progress comes from showing up daily.",
-    "Stay consistent and trust the process.",
-    "Effort repeated daily creates growth.",
-    "You are building momentum right now.",
-    "Improvement happens one step at a time.",
-    "Consistency is the real advantage.",
-    "Stay focused, stay disciplined.",
-    "Results come from daily execution.",
-    "Patience plus effort creates success.",
-    "Keep working even when no one notices.",
-    "Your progress is happening right now."
-}
-
-local lastDescIndex
-
-local function getRandomDescription()
-    local i
-    repeat
-        i = math.random(#motivations)
-    until i ~= lastDescIndex
-    lastDescIndex = i
-    return motivations[i]
-end
-
 local function notify(title, text, dur)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -60,7 +26,12 @@ end
 
 local function loadConfig()
     if isfile(CONFIG_FILE) then
-        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(CONFIG_FILE))
+        end)
+        if success then
+            return data
+        end
     end
 end
 
@@ -69,7 +40,7 @@ local function saveConfig(data)
 end
 
 local cfg = loadConfig()
-if cfg and cfg.webhook then
+if cfg and cfg.webhook and cfg.webhook ~= "" then
     webhook = cfg.webhook
 end
 
@@ -100,9 +71,7 @@ if not webhook then
     input.Parent = frame
     input.Size = UDim2.fromScale(0.9, 0.25)
     input.Position = UDim2.fromScale(0.05, 0.38)
-    input.Text = ""
     input.PlaceholderText = "Enter your Discord webhook URL"
-    input.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
     input.ClearTextOnFocus = false
     input.Font = Enum.Font.Gotham
     input.TextSize = 16
@@ -165,7 +134,6 @@ local function buildPayload()
         avatar_url = AVATAR_URL,
         embeds = {{
             title = "Roblox Stats Updated!",
-            description = getRandomDescription(),
             color = 0x00E5FF,
             fields = {
                 { name = "Username :", value = box(LocalPlayer.Name), inline = true },
@@ -205,7 +173,6 @@ local function editWebhook()
         Headers = { ["Content-Type"] = "application/json" },
         Body = HttpService:JSONEncode(buildPayload())
     })
-    notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
 end
 
 sendWebhook()
