@@ -112,7 +112,8 @@ local function getPing()
 end
 
 local function getMemory()
-    return string.format("%.2f MB", Stats:GetTotalMemoryUsageMb())
+    local mem = Stats.PerformanceStats and Stats.PerformanceStats:FindFirstChild("TotalMemory")
+    return mem and string.format("%.2f MB", mem:GetValue()) or "N/A"
 end
 
 local function getCPU()
