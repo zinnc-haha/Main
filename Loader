@@ -173,7 +173,7 @@ local function editWebhook()
         Headers = { ["Content-Type"] = "application/json" },
         Body = HttpService:JSONEncode(buildPayload())
     })
-notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
+    notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
 end
 
 sendWebhook()
