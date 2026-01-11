@@ -112,8 +112,7 @@ local function getPing()
 end
 
 local function getMemory()
-    local mem = Stats.PerformanceStats and Stats.PerformanceStats:FindFirstChild("TotalMemory")
-    return mem and string.format("%.2f MB", mem:GetValue()) or "N/A"
+    return string.format("%.2f MB", Stats:GetTotalMemoryUsageMb())
 end
 
 local function getCPU()
@@ -174,6 +173,7 @@ local function editWebhook()
         Headers = { ["Content-Type"] = "application/json" },
         Body = HttpService:JSONEncode(buildPayload())
     })
+notify("Z-Notifier", "Webhook stats successfully updated on Discord", 5)
 end
 
 sendWebhook()
